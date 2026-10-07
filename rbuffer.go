@@ -20,8 +20,11 @@ func (c *Client) RBuffer(namespace string) *RBuffer {
 	}
 }
 
-// Init initializes a new ring buffer under key with the given capacity and optional TTL in seconds.
-// Returns an error if the ring buffer already exists or initialization fails.
+// Init initializes a new ring buffer under key in the namespace with the given capacity and optional TTL in seconds (0 = no expiration).
+// Returns nil on success.
+// Returns [ErrKeyAlreadyExists] if a ring buffer already exists for key.
+// Returns [ErrNamespaceNotFound] if the namespace does not exist.
+// Returns [ErrClosed] if the client connection is closed, or a network/context error.
 func (b *RBuffer) Init(ctx context.Context, key string, capacity, ttl int64) error {
 	req := &memapv1.Request{
 		Command:   memapv1.CommandType_BINIT,
@@ -40,8 +43,11 @@ func (b *RBuffer) Init(ctx context.Context, key string, capacity, ttl int64) err
 	return nil
 }
 
-// Push appends a value to the ring buffer under key, overwriting the oldest entry if full.
-// Returns an error if the ring buffer does not exist or has expired.
+// Push appends a value to the ring buffer under key in the namespace, overwriting the oldest entry if full.
+// Returns nil on success.
+// Returns [ErrKeyNotFound] if the ring buffer does not exist or has expired.
+// Returns [ErrNamespaceNotFound] if the namespace does not exist.
+// Returns [ErrClosed] if the client connection is closed, or a network/context error.
 func (b *RBuffer) Push(ctx context.Context, key, value string) error {
 	req := &memapv1.Request{
 		Command:     memapv1.CommandType_BPUSH,
@@ -59,8 +65,12 @@ func (b *RBuffer) Push(ctx context.Context, key, value string) error {
 	return nil
 }
 
-// Pop removes and returns the oldest entry (head) from the ring buffer.
-// Returns an error if the ring buffer does not exist, has expired, or is empty.
+// Pop removes and returns the oldest entry (head) from the ring buffer under key in the namespace.
+// Returns the popped string value on success.
+// Returns [ErrBufferEmpty] if the ring buffer is empty.
+// Returns [ErrKeyNotFound] if the ring buffer does not exist or has expired.
+// Returns [ErrNamespaceNotFound] if the namespace does not exist.
+// Returns [ErrClosed] if the client connection is closed, or a network/context error.
 func (b *RBuffer) Pop(ctx context.Context, key string) (string, error) {
 	req := &memapv1.Request{
 		Command:   memapv1.CommandType_BPOP,
@@ -77,8 +87,12 @@ func (b *RBuffer) Pop(ctx context.Context, key string) (string, error) {
 	return resp.GetStringValue(), nil
 }
 
-// At retrieves an entry by its logical index (0 = oldest) without removing it.
-// Returns an error if the ring buffer does not exist, has expired, or the index is out of bounds.
+// At retrieves an entry by its logical index (0 = oldest) from the ring buffer without removing it.
+// Returns the string value at the index on success.
+// Returns [ErrIndexOutOfBounds] if the index is out of bounds.
+// Returns [ErrKeyNotFound] if the ring buffer does not exist or has expired.
+// Returns [ErrNamespaceNotFound] if the namespace does not exist.
+// Returns [ErrClosed] if the client connection is closed, or a network/context error.
 func (b *RBuffer) At(ctx context.Context, key string, index int64) (string, error) {
 	req := &memapv1.Request{
 		Command:   memapv1.CommandType_BAT,
@@ -96,8 +110,11 @@ func (b *RBuffer) At(ctx context.Context, key string, index int64) (string, erro
 	return resp.GetStringValue(), nil
 }
 
-// Slice returns all elements currently in the ring buffer in chronological order (oldest to newest).
-// Returns an error if the ring buffer does not exist or has expired.
+// Slice returns all elements currently stored in the ring buffer under key in chronological order (oldest to newest).
+// Returns a slice of string elements on success.
+// Returns [ErrKeyNotFound] if the ring buffer does not exist or has expired.
+// Returns [ErrNamespaceNotFound] if the namespace does not exist.
+// Returns [ErrClosed] if the client connection is closed, or a network/context error.
 func (b *RBuffer) Slice(ctx context.Context, key string) ([]string, error) {
 	req := &memapv1.Request{
 		Command:   memapv1.CommandType_BSLICE,
@@ -114,8 +131,12 @@ func (b *RBuffer) Slice(ctx context.Context, key string) ([]string, error) {
 	return resp.GetSliceValue(), nil
 }
 
-// Peek returns the oldest entry (head) from the ring buffer without removing it.
-// Returns an error if the ring buffer does not exist, has expired, or is empty.
+// Peek returns the oldest entry (head) from the ring buffer under key without removing it.
+// Returns the head string value on success.
+// Returns [ErrBufferEmpty] if the ring buffer is empty.
+// Returns [ErrKeyNotFound] if the ring buffer does not exist or has expired.
+// Returns [ErrNamespaceNotFound] if the namespace does not exist.
+// Returns [ErrClosed] if the client connection is closed, or a network/context error.
 func (b *RBuffer) Peek(ctx context.Context, key string) (string, error) {
 	req := &memapv1.Request{
 		Command:   memapv1.CommandType_BPEEK,
@@ -132,8 +153,12 @@ func (b *RBuffer) Peek(ctx context.Context, key string) (string, error) {
 	return resp.GetStringValue(), nil
 }
 
-// Back returns the newest entry (tail) from the ring buffer without removing it.
-// Returns an error if the ring buffer does not exist, has expired, or is empty.
+// Back returns the newest entry (tail) from the ring buffer under key without removing it.
+// Returns the tail string value on success.
+// Returns [ErrBufferEmpty] if the ring buffer is empty.
+// Returns [ErrKeyNotFound] if the ring buffer does not exist or has expired.
+// Returns [ErrNamespaceNotFound] if the namespace does not exist.
+// Returns [ErrClosed] if the client connection is closed, or a network/context error.
 func (b *RBuffer) Back(ctx context.Context, key string) (string, error) {
 	req := &memapv1.Request{
 		Command:   memapv1.CommandType_BBACK,
@@ -150,8 +175,11 @@ func (b *RBuffer) Back(ctx context.Context, key string) (string, error) {
 	return resp.GetStringValue(), nil
 }
 
-// Cap returns the configured capacity of the ring buffer under key.
-// Returns an error if the ring buffer does not exist or has expired.
+// Cap returns the configured capacity of the ring buffer under key in the namespace.
+// Returns the capacity on success.
+// Returns [ErrKeyNotFound] if the ring buffer does not exist or has expired.
+// Returns [ErrNamespaceNotFound] if the namespace does not exist.
+// Returns [ErrClosed] if the client connection is closed, or a network/context error.
 func (b *RBuffer) Cap(ctx context.Context, key string) (int64, error) {
 	req := &memapv1.Request{
 		Command:   memapv1.CommandType_BCAP,
@@ -168,8 +196,11 @@ func (b *RBuffer) Cap(ctx context.Context, key string) (int64, error) {
 	return resp.GetIntValue(), nil
 }
 
-// Len returns the current number of elements in the ring buffer under key.
-// Returns an error if the ring buffer does not exist or has expired.
+// Len returns the current number of elements in the ring buffer under key in the namespace.
+// Returns the element count on success.
+// Returns [ErrKeyNotFound] if the ring buffer does not exist or has expired.
+// Returns [ErrNamespaceNotFound] if the namespace does not exist.
+// Returns [ErrClosed] if the client connection is closed, or a network/context error.
 func (b *RBuffer) Len(ctx context.Context, key string) (int64, error) {
 	req := &memapv1.Request{
 		Command:   memapv1.CommandType_BLEN,
@@ -187,7 +218,9 @@ func (b *RBuffer) Len(ctx context.Context, key string) (int64, error) {
 }
 
 // Reset clears all elements from the ring buffer under key, resetting its length to 0.
-// Returns an error if the ring buffer does not exist or has expired.
+// Returns nil on success.
+// Returns [ErrNamespaceNotFound] if the namespace does not exist.
+// Returns [ErrClosed] if the client connection is closed, or a network/context error.
 func (b *RBuffer) Reset(ctx context.Context, key string) error {
 	req := &memapv1.Request{
 		Command:   memapv1.CommandType_BRESET,
@@ -204,8 +237,11 @@ func (b *RBuffer) Reset(ctx context.Context, key string) error {
 	return nil
 }
 
-// Del removes the ring buffer under key.
-// Returns an error if the operation fails on the server.
+// Del removes the ring buffer under key from the namespace.
+// Removing a non-existent ring buffer succeeds without error.
+// Returns nil on success.
+// Returns [ErrNamespaceNotFound] if the namespace does not exist.
+// Returns [ErrClosed] if the client connection is closed, or a network/context error.
 func (b *RBuffer) Del(ctx context.Context, key string) error {
 	req := &memapv1.Request{
 		Command:   memapv1.CommandType_BDEL,
@@ -222,8 +258,11 @@ func (b *RBuffer) Del(ctx context.Context, key string) error {
 	return nil
 }
 
-// Expire sets or updates the time-to-live for the ring buffer in seconds.
-// Returns an error if the ring buffer does not exist or has expired.
+// Expire sets or updates the time-to-live for the ring buffer under key in seconds.
+// Returns nil on success.
+// Returns [ErrKeyNotFound] if the ring buffer does not exist or has expired.
+// Returns [ErrNamespaceNotFound] if the namespace does not exist.
+// Returns [ErrClosed] if the client connection is closed, or a network/context error.
 func (b *RBuffer) Expire(ctx context.Context, key string, ttl int64) error {
 	req := &memapv1.Request{
 		Command:   memapv1.CommandType_BEXPIRE,
@@ -241,9 +280,11 @@ func (b *RBuffer) Expire(ctx context.Context, key string, ttl int64) error {
 	return nil
 }
 
-// TTL returns the remaining time-to-live of the ring buffer in seconds.
+// TTL returns the remaining time-to-live of the ring buffer under key in seconds.
 // Returns -1 if the ring buffer exists without an expiration time.
-// Returns -2 or an error if the ring buffer does not exist.
+// Returns [ErrKeyNotFound] if the ring buffer does not exist or has expired.
+// Returns [ErrNamespaceNotFound] if the namespace does not exist.
+// Returns [ErrClosed] if the client connection is closed, or a network/context error.
 func (b *RBuffer) TTL(ctx context.Context, key string) (int64, error) {
 	req := &memapv1.Request{
 		Command:   memapv1.CommandType_BTTL,

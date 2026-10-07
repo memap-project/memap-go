@@ -19,8 +19,9 @@ type Client struct {
 	closed bool
 }
 
-// New creates and connects a new Memap client using the provided address and functional options.
-// Returns an error if the initial connection fails.
+// New creates and connects a new Memap client to the specified address using functional options.
+// If addr is empty, the default address ("localhost:2118") is used.
+// Returns the connected [*Client] on success, or an error if the initial TCP dial fails.
 func New(addr string, opts ...Option) (*Client, error) {
 	cfg := defaultConfig()
 	if addr != "" {
@@ -32,8 +33,8 @@ func New(addr string, opts ...Option) (*Client, error) {
 	return NewClient(cfg)
 }
 
-// NewClient creates and connects a new Memap client based on a Config struct.
-// Returns an error if the initial connection fails.
+// NewClient creates and connects a new Memap client based on the provided [Config].
+// Returns the connected [*Client] on success, or an error if the initial TCP dial fails.
 func NewClient(cfg Config) (*Client, error) {
 	if cfg.Addr == "" {
 		cfg.Addr = defaultAddr
@@ -80,8 +81,9 @@ func (c *Client) getConn(ctx context.Context) (net.Conn, error) {
 	return c.conn, nil
 }
 
-// Close closes the underlying network connection to the server.
-// Returns ErrClosed if the client has already been closed.
+// Close closes the underlying network connection to the Memap server.
+// Subsequent operations on this client will return [ErrClosed].
+// Returns nil if the client has already been closed or closes cleanly.
 func (c *Client) Close() error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
@@ -139,8 +141,10 @@ func (c *Client) do(ctx context.Context, req *memapv1.Request) (*memapv1.Respons
 	return &resp, nil
 }
 
-// Ping sends a PING command to verify server availability.
-// Returns "PONG" on success or an error if the server is unreachable.
+// Ping sends a PING command to verify server availability and connection health.
+// Returns "PONG" on success.
+// Returns a [*ServerError] if the server rejects the request,
+// [ErrClosed] if the client connection is closed, or a network/context error.
 func (c *Client) Ping(ctx context.Context) (string, error) {
 	req := &memapv1.Request{
 		Command: memapv1.CommandType_PING,

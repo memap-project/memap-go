@@ -20,28 +20,11 @@ func (c *Client) Counter(namespace string) *Counter {
 	}
 }
 
-// Init initializes a new counter under key with an upper limit and optional TTL in seconds.
-// Returns an error if the counter already exists or initialization fails.
-func (cnt *Counter) Init(ctx context.Context, key string, limit, ttl int64) error {
-	req := &memapv1.Request{
-		Command:   memapv1.CommandType_CINIT,
-		Namespace: cnt.namespace,
-		Key:       key,
-		Limit:     limit,
-		Ttl:       ttl,
-	}
-	resp, err := cnt.client.do(ctx, req)
-	if err != nil {
-		return err
-	}
-	if !resp.GetSuccess() {
-		return newServerError(resp.GetError())
-	}
-	return nil
-}
-
-// SetLimit updates the upper limit for the counter under key.
-// Returns an error if the counter does not exist or has expired.
+// SetLimit sets or updates the upper limit for the counter under key in the namespace.
+// Initializes the counter if it does not exist or has expired.
+// Returns nil on success.
+// Returns [ErrNamespaceNotFound] if the namespace does not exist.
+// Returns [ErrClosed] if the client connection is closed, or a network/context error.
 func (cnt *Counter) SetLimit(ctx context.Context, key string, limit int64) error {
 	req := &memapv1.Request{
 		Command:   memapv1.CommandType_CSLIMIT,
@@ -59,8 +42,11 @@ func (cnt *Counter) SetLimit(ctx context.Context, key string, limit int64) error
 	return nil
 }
 
-// GetLimit returns the configured upper limit of the counter under key.
-// Returns an error if the counter does not exist or has expired.
+// GetLimit returns the configured upper limit of the counter under key in the namespace.
+// Returns the upper limit on success.
+// Returns [ErrKeyNotFound] if the counter does not exist or has expired.
+// Returns [ErrNamespaceNotFound] if the namespace does not exist.
+// Returns [ErrClosed] if the client connection is closed, or a network/context error.
 func (cnt *Counter) GetLimit(ctx context.Context, key string) (int64, error) {
 	req := &memapv1.Request{
 		Command:   memapv1.CommandType_CGLIMIT,
@@ -77,8 +63,11 @@ func (cnt *Counter) GetLimit(ctx context.Context, key string) (int64, error) {
 	return resp.GetIntValue(), nil
 }
 
-// Get returns the current integer value of the counter under key.
-// Returns an error if the counter does not exist or has expired.
+// Get returns the current integer value of the counter under key in the namespace.
+// Returns the counter value on success.
+// Returns [ErrKeyNotFound] if the counter does not exist or has expired.
+// Returns [ErrNamespaceNotFound] if the namespace does not exist.
+// Returns [ErrClosed] if the client connection is closed, or a network/context error.
 func (cnt *Counter) Get(ctx context.Context, key string) (int64, error) {
 	req := &memapv1.Request{
 		Command:   memapv1.CommandType_CGET,
@@ -95,8 +84,11 @@ func (cnt *Counter) Get(ctx context.Context, key string) (int64, error) {
 	return resp.GetIntValue(), nil
 }
 
-// Del removes the counter under key.
-// Returns an error if the operation fails on the server.
+// Del removes the counter under key from the namespace.
+// Removing a non-existent counter succeeds without error.
+// Returns nil on success.
+// Returns [ErrNamespaceNotFound] if the namespace does not exist.
+// Returns [ErrClosed] if the client connection is closed, or a network/context error.
 func (cnt *Counter) Del(ctx context.Context, key string) error {
 	req := &memapv1.Request{
 		Command:   memapv1.CommandType_CDEL,
@@ -113,8 +105,11 @@ func (cnt *Counter) Del(ctx context.Context, key string) error {
 	return nil
 }
 
-// Expire sets or updates the time-to-live for the counter in seconds.
-// Returns an error if the counter does not exist or has expired.
+// Expire sets or updates the time-to-live for the counter under key in seconds.
+// Returns nil on success.
+// Returns [ErrKeyNotFound] if the counter does not exist or has expired.
+// Returns [ErrNamespaceNotFound] if the namespace does not exist.
+// Returns [ErrClosed] if the client connection is closed, or a network/context error.
 func (cnt *Counter) Expire(ctx context.Context, key string, ttl int64) error {
 	req := &memapv1.Request{
 		Command:   memapv1.CommandType_CEXPIRE,
@@ -132,9 +127,11 @@ func (cnt *Counter) Expire(ctx context.Context, key string, ttl int64) error {
 	return nil
 }
 
-// TTL returns the remaining time-to-live of the counter in seconds.
+// TTL returns the remaining time-to-live of the counter under key in seconds.
 // Returns -1 if the counter exists without an expiration time.
-// Returns -2 or an error if the counter does not exist.
+// Returns [ErrKeyNotFound] if the counter does not exist or has expired.
+// Returns [ErrNamespaceNotFound] if the namespace does not exist.
+// Returns [ErrClosed] if the client connection is closed, or a network/context error.
 func (cnt *Counter) TTL(ctx context.Context, key string) (int64, error) {
 	req := &memapv1.Request{
 		Command:   memapv1.CommandType_CTTL,
@@ -152,7 +149,11 @@ func (cnt *Counter) TTL(ctx context.Context, key string) (int64, error) {
 }
 
 // IncrBy increments the counter under key by delta and returns the new value.
-// Returns an error if the counter does not exist, has expired, or if the increment exceeds the limit.
+// Initializes the counter if it does not exist or has expired.
+// Returns the new integer value after incrementing.
+// Returns [ErrLimitExceeded] if the increment exceeds the configured limit.
+// Returns [ErrNamespaceNotFound] if the namespace does not exist.
+// Returns [ErrClosed] if the client connection is closed, or a network/context error.
 func (cnt *Counter) IncrBy(ctx context.Context, key string, delta int64) (int64, error) {
 	req := &memapv1.Request{
 		Command:   memapv1.CommandType_CINCRBY,
@@ -171,7 +172,11 @@ func (cnt *Counter) IncrBy(ctx context.Context, key string, delta int64) (int64,
 }
 
 // DecrBy decrements the counter under key by delta and returns the new value.
-// Returns an error if the counter does not exist, has expired, or if the decrement would drop below zero.
+// Returns the new integer value after decrementing.
+// Returns [ErrKeyNotFound] if the counter does not exist or has expired.
+// Returns [ErrLimitExceeded] if the decrement would result in a negative value.
+// Returns [ErrNamespaceNotFound] if the namespace does not exist.
+// Returns [ErrClosed] if the client connection is closed, or a network/context error.
 func (cnt *Counter) DecrBy(ctx context.Context, key string, delta int64) (int64, error) {
 	req := &memapv1.Request{
 		Command:   memapv1.CommandType_CDECRBY,

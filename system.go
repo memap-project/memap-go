@@ -7,7 +7,9 @@ import (
 )
 
 // Create creates a new namespace on the server.
-// Returns an error if the namespace already exists or creation fails.
+// Returns nil on success.
+// Returns [ErrNamespaceAlreadyExists] if the namespace already exists.
+// Returns [ErrClosed] if the client connection is closed, or a network/context error.
 func (c *Client) Create(ctx context.Context, namespace string) error {
 	req := &memapv1.Request{
 		Command:   memapv1.CommandType_CREATE,
@@ -23,8 +25,11 @@ func (c *Client) Create(ctx context.Context, namespace string) error {
 	return nil
 }
 
-// Drop deletes the namespace and all its keys on the server.
-// Returns an error if the namespace does not exist or deletion fails.
+// Drop deletes the namespace and all its stored keys from the server.
+// Deleting a non-existent namespace succeeds without error.
+// Returns nil on success.
+// Returns a [*ServerError] if deletion fails on the server.
+// Returns [ErrClosed] if the client connection is closed, or a network/context error.
 func (c *Client) Drop(ctx context.Context, namespace string) error {
 	req := &memapv1.Request{
 		Command:   memapv1.CommandType_DROP,
@@ -40,8 +45,10 @@ func (c *Client) Drop(ctx context.Context, namespace string) error {
 	return nil
 }
 
-// Erase drops all custom namespaces and flushes the default namespace.
-// Returns an error if the operation fails on the server.
+// Erase flushes all data in the default namespace and drops all custom namespaces from the server.
+// Returns nil on success.
+// Returns a [*ServerError] if the operation fails on the server.
+// Returns [ErrClosed] if the client connection is closed, or a network/context error.
 func (c *Client) Erase(ctx context.Context) error {
 	req := &memapv1.Request{
 		Command: memapv1.CommandType_ERASE,
@@ -56,8 +63,10 @@ func (c *Client) Erase(ctx context.Context) error {
 	return nil
 }
 
-// Flush removes all keys across all namespaces while preserving the namespaces themselves.
-// Returns an error if the operation fails on the server.
+// Flush removes all keys across all namespaces (including the default namespace) while preserving the namespaces themselves.
+// Returns nil on success.
+// Returns a [*ServerError] if the operation fails on the server.
+// Returns [ErrClosed] if the client connection is closed, or a network/context error.
 func (c *Client) Flush(ctx context.Context) error {
 	req := &memapv1.Request{
 		Command: memapv1.CommandType_FLUSH,

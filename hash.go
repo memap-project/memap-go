@@ -20,8 +20,10 @@ func (c *Client) Hash(namespace string) *Hash {
 	}
 }
 
-// Set creates or resets an empty hash table under key with an optional TTL in seconds.
-// Returns an error if the operation fails on the server.
+// Set creates or resets an empty hash map under key in the namespace with an optional TTL in seconds (0 = no expiration).
+// Returns nil on success.
+// Returns [ErrNamespaceNotFound] if the namespace does not exist.
+// Returns [ErrClosed] if the client connection is closed, or a network/context error.
 func (h *Hash) Set(ctx context.Context, key string, ttl int64) error {
 	req := &memapv1.Request{
 		Command:   memapv1.CommandType_HSET,
@@ -39,8 +41,11 @@ func (h *Hash) Set(ctx context.Context, key string, ttl int64) error {
 	return nil
 }
 
-// Get retrieves all field-value pairs stored in the hash table as a map[string]string.
-// Returns an error if the hash does not exist or has expired.
+// Get retrieves a copy of all field-value pairs stored in the hash map under key in the namespace.
+// Returns the field-value pairs as a map[string]string on success.
+// Returns [ErrKeyNotFound] if the hash does not exist or has expired.
+// Returns [ErrNamespaceNotFound] if the namespace does not exist.
+// Returns [ErrClosed] if the client connection is closed, or a network/context error.
 func (h *Hash) Get(ctx context.Context, key string) (map[string]string, error) {
 	req := &memapv1.Request{
 		Command:   memapv1.CommandType_HGET,
@@ -57,8 +62,11 @@ func (h *Hash) Get(ctx context.Context, key string) (map[string]string, error) {
 	return resp.GetMapValue(), nil
 }
 
-// Del removes the entire hash table under key.
-// Returns an error if the operation fails on the server.
+// Del removes the entire hash map under key from the namespace.
+// Removing a non-existent hash succeeds without error.
+// Returns nil on success.
+// Returns [ErrNamespaceNotFound] if the namespace does not exist.
+// Returns [ErrClosed] if the client connection is closed, or a network/context error.
 func (h *Hash) Del(ctx context.Context, key string) error {
 	req := &memapv1.Request{
 		Command:   memapv1.CommandType_HDEL,
@@ -75,8 +83,11 @@ func (h *Hash) Del(ctx context.Context, key string) error {
 	return nil
 }
 
-// Expire sets or updates the time-to-live for the hash table in seconds.
-// Returns an error if the hash does not exist or has expired.
+// Expire sets or updates the time-to-live for the hash map under key in seconds.
+// Returns nil on success.
+// Returns [ErrKeyNotFound] if the hash does not exist or has expired.
+// Returns [ErrNamespaceNotFound] if the namespace does not exist.
+// Returns [ErrClosed] if the client connection is closed, or a network/context error.
 func (h *Hash) Expire(ctx context.Context, key string, ttl int64) error {
 	req := &memapv1.Request{
 		Command:   memapv1.CommandType_HEXPIRE,
@@ -94,9 +105,11 @@ func (h *Hash) Expire(ctx context.Context, key string, ttl int64) error {
 	return nil
 }
 
-// TTL returns the remaining time-to-live of the hash table in seconds.
+// TTL returns the remaining time-to-live of the hash map under key in seconds.
 // Returns -1 if the hash exists without an expiration time.
-// Returns -2 or an error if the hash does not exist.
+// Returns [ErrKeyNotFound] if the hash does not exist or has expired.
+// Returns [ErrNamespaceNotFound] if the namespace does not exist.
+// Returns [ErrClosed] if the client connection is closed, or a network/context error.
 func (h *Hash) TTL(ctx context.Context, key string) (int64, error) {
 	req := &memapv1.Request{
 		Command:   memapv1.CommandType_HTTL,
@@ -113,8 +126,10 @@ func (h *Hash) TTL(ctx context.Context, key string) (int64, error) {
 	return resp.GetIntValue(), nil
 }
 
-// Exists checks whether an unexpired hash table exists under key.
-// Returns true if the hash table exists, false otherwise.
+// Exists checks whether an unexpired hash map exists under key in the namespace.
+// Returns true if the hash map exists, false if it does not or has expired.
+// Returns [ErrNamespaceNotFound] if the namespace does not exist.
+// Returns [ErrClosed] if the client connection is closed, or a network/context error.
 func (h *Hash) Exists(ctx context.Context, key string) (bool, error) {
 	req := &memapv1.Request{
 		Command:   memapv1.CommandType_HEXIST,
@@ -131,8 +146,11 @@ func (h *Hash) Exists(ctx context.Context, key string) (bool, error) {
 	return resp.GetSuccess(), nil
 }
 
-// Len returns the number of fields currently stored in the hash table.
-// Returns an error if the hash does not exist or has expired.
+// Len returns the number of fields currently stored in the hash map under key in the namespace.
+// Returns the field count on success.
+// Returns [ErrKeyNotFound] if the hash does not exist or has expired.
+// Returns [ErrNamespaceNotFound] if the namespace does not exist.
+// Returns [ErrClosed] if the client connection is closed, or a network/context error.
 func (h *Hash) Len(ctx context.Context, key string) (int64, error) {
 	req := &memapv1.Request{
 		Command:   memapv1.CommandType_HLEN,
@@ -149,8 +167,11 @@ func (h *Hash) Len(ctx context.Context, key string) (int64, error) {
 	return resp.GetIntValue(), nil
 }
 
-// Keys returns a slice containing all field names in the hash table.
-// Returns an error if the hash does not exist or has expired.
+// Keys returns a slice containing all field names in the hash map under key in the namespace.
+// Returns a slice of field names on success.
+// Returns [ErrKeyNotFound] if the hash does not exist or has expired.
+// Returns [ErrNamespaceNotFound] if the namespace does not exist.
+// Returns [ErrClosed] if the client connection is closed, or a network/context error.
 func (h *Hash) Keys(ctx context.Context, key string) ([]string, error) {
 	req := &memapv1.Request{
 		Command:   memapv1.CommandType_HKEYS,
@@ -167,8 +188,11 @@ func (h *Hash) Keys(ctx context.Context, key string) ([]string, error) {
 	return resp.GetSliceValue(), nil
 }
 
-// Values returns a slice containing all field values in the hash table.
-// Returns an error if the hash does not exist or has expired.
+// Values returns a slice containing all field values in the hash map under key in the namespace.
+// Returns a slice of field values on success.
+// Returns [ErrKeyNotFound] if the hash does not exist or has expired.
+// Returns [ErrNamespaceNotFound] if the namespace does not exist.
+// Returns [ErrClosed] if the client connection is closed, or a network/context error.
 func (h *Hash) Values(ctx context.Context, key string) ([]string, error) {
 	req := &memapv1.Request{
 		Command:   memapv1.CommandType_HVALS,
@@ -185,8 +209,11 @@ func (h *Hash) Values(ctx context.Context, key string) ([]string, error) {
 	return resp.GetSliceValue(), nil
 }
 
-// FSet sets or updates the value of a specific field within the hash table under key.
-// Creates the hash table automatically if it does not already exist.
+// FSet sets or updates the value of a specific field within the hash map under key in the namespace.
+// Creates a new hash map automatically if one does not already exist.
+// Returns nil on success.
+// Returns [ErrNamespaceNotFound] if the namespace does not exist.
+// Returns [ErrClosed] if the client connection is closed, or a network/context error.
 func (h *Hash) FSet(ctx context.Context, key, field, value string) error {
 	req := &memapv1.Request{
 		Command:     memapv1.CommandType_HFSET,
@@ -205,8 +232,12 @@ func (h *Hash) FSet(ctx context.Context, key, field, value string) error {
 	return nil
 }
 
-// FGet retrieves the value of a specific field from the hash table under key.
-// Returns an error if the hash or the specified field does not exist.
+// FGet retrieves the value of a specific field from the hash map under key in the namespace.
+// Returns the field value on success.
+// Returns [ErrFieldNotFound] if the field does not exist.
+// Returns [ErrKeyNotFound] if the hash does not exist or has expired.
+// Returns [ErrNamespaceNotFound] if the namespace does not exist.
+// Returns [ErrClosed] if the client connection is closed, or a network/context error.
 func (h *Hash) FGet(ctx context.Context, key, field string) (string, error) {
 	req := &memapv1.Request{
 		Command:   memapv1.CommandType_HFGET,
@@ -224,8 +255,11 @@ func (h *Hash) FGet(ctx context.Context, key, field string) (string, error) {
 	return resp.GetStringValue(), nil
 }
 
-// FDel removes a specific field from the hash table under key.
-// Returns an error if the operation fails on the server.
+// FDel removes a specific field from the hash map under key in the namespace.
+// Removing a non-existent field succeeds without error.
+// Returns nil on success.
+// Returns [ErrNamespaceNotFound] if the namespace does not exist.
+// Returns [ErrClosed] if the client connection is closed, or a network/context error.
 func (h *Hash) FDel(ctx context.Context, key, field string) error {
 	req := &memapv1.Request{
 		Command:   memapv1.CommandType_HFDEL,

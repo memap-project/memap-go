@@ -20,8 +20,10 @@ func (c *Client) KV(namespace string) *KV {
 	}
 }
 
-// Set stores a string value under key with an optional TTL in seconds (0 = no expiration).
-// Returns an error if the operation fails on the server.
+// Set stores a string value under key in the namespace with an optional TTL in seconds (0 = no expiration).
+// Returns nil on success.
+// Returns [ErrNamespaceNotFound] if the namespace does not exist.
+// Returns [ErrClosed] if the client connection is closed, or a network/context error.
 func (kv *KV) Set(ctx context.Context, key, value string, ttl int64) error {
 	req := &memapv1.Request{
 		Command:     memapv1.CommandType_SET,
@@ -40,8 +42,11 @@ func (kv *KV) Set(ctx context.Context, key, value string, ttl int64) error {
 	return nil
 }
 
-// Get retrieves the string value associated with key.
-// Returns an error if the key does not exist or has expired.
+// Get retrieves the string value associated with key from the namespace.
+// Returns the string value on success.
+// Returns [ErrKeyNotFound] if the key does not exist or has expired.
+// Returns [ErrNamespaceNotFound] if the namespace does not exist.
+// Returns [ErrClosed] if the client connection is closed, or a network/context error.
 func (kv *KV) Get(ctx context.Context, key string) (string, error) {
 	req := &memapv1.Request{
 		Command:   memapv1.CommandType_GET,
@@ -58,8 +63,11 @@ func (kv *KV) Get(ctx context.Context, key string) (string, error) {
 	return resp.GetStringValue(), nil
 }
 
-// Del removes the specified key and its associated value.
-// Returns an error if the operation fails on the server.
+// Del removes the specified key and its associated value from the namespace.
+// Removing a non-existent key succeeds without error.
+// Returns nil on success.
+// Returns [ErrNamespaceNotFound] if the namespace does not exist.
+// Returns [ErrClosed] if the client connection is closed, or a network/context error.
 func (kv *KV) Del(ctx context.Context, key string) error {
 	req := &memapv1.Request{
 		Command:   memapv1.CommandType_DEL,
@@ -77,7 +85,10 @@ func (kv *KV) Del(ctx context.Context, key string) error {
 }
 
 // Expire sets or updates the time-to-live for key in seconds.
-// Returns an error if the key does not exist or has expired.
+// Returns nil on success.
+// Returns [ErrKeyNotFound] if the key does not exist or has expired.
+// Returns [ErrNamespaceNotFound] if the namespace does not exist.
+// Returns [ErrClosed] if the client connection is closed, or a network/context error.
 func (kv *KV) Expire(ctx context.Context, key string, ttl int64) error {
 	req := &memapv1.Request{
 		Command:   memapv1.CommandType_EXPIRE,
@@ -97,7 +108,9 @@ func (kv *KV) Expire(ctx context.Context, key string, ttl int64) error {
 
 // TTL returns the remaining time-to-live of key in seconds.
 // Returns -1 if the key exists without an expiration time.
-// Returns -2 or an error if the key does not exist.
+// Returns [ErrKeyNotFound] if the key does not exist or has expired.
+// Returns [ErrNamespaceNotFound] if the namespace does not exist.
+// Returns [ErrClosed] if the client connection is closed, or a network/context error.
 func (kv *KV) TTL(ctx context.Context, key string) (int64, error) {
 	req := &memapv1.Request{
 		Command:   memapv1.CommandType_TTL,

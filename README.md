@@ -44,7 +44,7 @@ func main() {
  }
  fmt.Println("Ping:", pong) // PONG
 
- // 1. Робота через підклієнти (KV, Hash, Counter, RBuffer)
+	// 1. Робота через підклієнти (KV, Hash, Counter, RBuffer, Set)
  _ = client.Create(ctx, "users")
  kv := client.KV("users")
  _ = kv.Set(ctx, "user:1", "John Doe", 3600)
@@ -104,8 +104,10 @@ _ = hash.Del(ctx, "profile:1")
 ```go
 counter := client.Counter("metrics")
 
-// Ініціалізація з лімітом та TTL
-_ = counter.Init(ctx, "hits", 1000, 3600)
+// Встановлення ліміту (ініціалізує лічильник, якщо він ще не існує)
+_ = counter.SetLimit(ctx, "hits", 1000)
+_ = counter.Expire(ctx, "hits", 3600)
+
 newVal, _ := counter.IncrBy(ctx, "hits", 1)
 newVal, _ = counter.DecrBy(ctx, "hits", 1)
 count, _ := counter.Get(ctx, "hits")
@@ -130,6 +132,22 @@ last, _ := buf.Back(ctx, "recent_events")
 length, _ := buf.Len(ctx, "recent_events")
 capacity, _ := buf.Cap(ctx, "recent_events")
 _ = buf.Reset(ctx, "recent_events")
+```
+
+### Set (`client.Set(namespace)`)
+
+```go
+set := client.Set("tags")
+
+// Додавання та перевірка елементів
+_ = set.Add(ctx, "article:1", "golang")
+_ = set.Add(ctx, "article:1", "nosql")
+isMember, _ := set.IsMember(ctx, "article:1", "golang") // true
+count, _ := set.Card(ctx, "article:1")                   // 2
+members, _ := set.Members(ctx, "article:1")              // []string{"golang", "nosql"}
+_ = set.Remove(ctx, "article:1", "nosql")
+_ = set.Expire(ctx, "article:1", 3600)
+ttl, _ := set.TTL(ctx, "article:1")
 ```
 
 ### Namespace Management (`client`)
